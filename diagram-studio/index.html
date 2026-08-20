@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagram Studio - Free Diagramming Tool</title>
+<meta name="description" content="Free online diagram tool. Create flowcharts, architecture diagrams, network topology, ERD and sequence diagrams. Export PNG, SVG, JSON. No sign-up required.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="8" height="8" rx="1.5"></rect>
+        <rect x="13" y="3" width="8" height="8" rx="1.5"></rect>
+        <rect x="3" y="13" width="8" height="8" rx="1.5"></rect>
+        <rect x="13" y="13" width="8" height="8" rx="1.5"></rect>
+      </svg>
+      <span class="brand-name">Diagram<span class="brand-accent">Studio</span></span>
+    </div>
+    <input id="docTitle" class="doc-title" value="Untitled Diagram" spellcheck="false">
+    <nav class="tools">
+      <button class="btn" data-action="new" data-icon="newfile"><span class="ic" data-ic="newfile"></span><span class="lbl">New</span></button>
+      <button class="btn" data-action="open" data-icon="open"><span class="ic" data-ic="open"></span><span class="lbl">Open</span></button>
+      <button class="btn" data-action="save" data-icon="save"><span class="ic" data-ic="save"></span><span class="lbl">Save</span></button>
+      <div class="dd-wrap">
+        <button class="btn" id="exportBtn" data-icon="download"><span class="ic" data-ic="download"></span><span class="lbl">Export</span><span class="caret">&#9662;</span></button>
+        <div class="dropdown" id="exportMenu" hidden>
+          <button class="menu-item" data-export="png">Export as PNG image</button>
+          <button class="menu-item" data-export="svg">Export as SVG</button>
+          <button class="menu-item" data-export="json">Export as JSON project</button>
+        </div>
+      </div>
+      <div class="vsep"></div>
+      <button class="btn" data-action="templates" data-icon="template"><span class="ic" data-ic="template"></span><span class="lbl">Templates</span></button>
+      <button class="btn accent" data-action="generate" data-icon="spark"><span class="ic" data-ic="spark"></span><span class="lbl">Generate from text</span></button>
+      <div class="vsep"></div>
+      <button class="btn icon-only" data-action="undo" data-icon="undo" title="Undo (Ctrl+Z)"></button>
+      <button class="btn icon-only" data-action="redo" data-icon="redo" title="Redo (Ctrl+Shift+Z)"></button>
+      <button class="btn icon-only" data-action="zoomFit" data-icon="zoomFit" title="Zoom to fit"></button>
+    </nav>
+    <div class="spacer"></div>
+    <button class="btn icon-only" data-action="help" title="Keyboard shortcuts">?</button>
+  </header>
+
+  <div class="body">
+    <aside class="leftbar">
+      <div class="tools-row">
+        <button class="tool-btn active" data-tool="select" data-icon="select" title="Select / Move (V)"></button>
+        <button class="tool-btn" data-tool="text" data-icon="text" title="Add Text (T)"></button>
+        <button class="tool-btn" data-tool="connect" data-icon="connect" title="Add Connector (C)"></button>
+        <button class="tool-btn" data-tool="pan" data-icon="pan" title="Pan canvas (Space+drag / scroll)"></button>
+      </div>
+      <input id="paletteSearch" class="search" type="text" placeholder="Search shapes...">
+      <div class="palette-scroll" id="palette"></div>
+      <div class="leftbar-footer">
+        <span id="shapeCount">0 shapes</span>
+        <button class="mini-btn" data-action="help" data-icon="help">Help</button>
+      </div>
+    </aside>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <svg id="canvas">
+        <defs id="defs"></defs>
+        <g id="world">
+          <rect id="gridRect" x="-100000" y="-100000" width="200000" height="200000" fill="url(#dotgrid)" style="display:none"></rect>
+          <g id="edgeLayer"></g>
+          <g id="shapeLayer"></g>
+          <g id="tempLayer"></g>
+          <g id="selLayer"></g>
+        </g>
+      </svg>
+      <svg id="overlay"></svg>
+      <div id="editorWrap" hidden><textarea id="editorText" spellcheck="false"></textarea></div>
+    </div>
+
+    <aside class="rightbar" id="rightbar">
+      <div id="properties"></div>
+    </aside>
+  </div>
+
+  <footer class="statusbar">
+    <span id="statusInfo">Ready</span>
+    <span id="saveState" class="save-state"></span>
+    <div class="spacer"></div>
+    <button class="mini-btn" data-action="toggleGrid" id="gridBtn">Grid</button>
+    <button class="mini-btn" data-action="toggleSnap" id="snapBtn">Snap</button>
+    <div class="zoom-group">
+      <button class="mini-btn" data-action="zoomOut" title="Zoom out">-</button>
+      <span id="zoomLabel">100%</span>
+      <button class="mini-btn" data-action="zoomIn" title="Zoom in">+</button>
+    </div>
+  </footer>
+</div>
+
+<div class="modal-overlay" id="templatesModal" hidden>
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>Templates</h3>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="tpl-grid" id="tplGrid"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="generateModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Generate diagram from text</h3>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="flow">Flowchart</button>
+      <button class="tab" data-tab="seq">Sequence</button>
+    </div>
+    <div class="gen-body">
+      <textarea id="genInput" spellcheck="false" placeholder="Start -> Validate input?&#10;Start -> Build -> Deploy&#10;Build -> Test: run tests"></textarea>
+      <div class="gen-help" id="genHelp">Format: <code>A -&gt; B</code> creates a node and arrow. Append <code>: label</code> to name the arrow. End a node name with <code>?</code> to make it a decision diamond.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" data-close>Cancel</button>
+      <button class="btn accent" id="genGo">Generate</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="helpModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Shortcuts</h3>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <div class="help-grid">
+      <div><kbd>V / T / C</kbd><span>Tools: select / text / connector</span></div>
+      <div><kbd>Space + drag</kbd><span>Pan canvas</span></div>
+      <div><kbd>Scroll</kbd><span>Pan</span></div>
+      <div><kbd>Ctrl + scroll</kbd><span>Zoom</span></div>
+      <div><kbd>Double-click</kbd><span>Edit text / add text</span></div>
+      <div><kbd>Drag from edge dot</kbd><span>Draw connector</span></div>
+      <div><kbd>Delete / Backspace</kbd><span>Delete selection</span></div>
+      <div><kbd>Ctrl+C / V / X / D</kbd><span>Copy / paste / cut / duplicate</span></div>
+      <div><kbd>Ctrl+A</kbd><span>Select all</span></div>
+      <div><kbd>Arrow keys</kbd><span>Nudge selection (Shift = 10px)</span></div>
+      <div><kbd>Ctrl+Z / Shift+Ctrl+Z</kbd><span>Undo / redo</span></div>
+      <div><kbd>Ctrl+S</kbd><span>Save JSON</span></div>
+      <div><kbd>Ctrl+E</kbd><span>Export PNG</span></div>
+      <div><kbd>Shift+drag</kbd><span>Add to selection</span></div>
+      <div><kbd>Escape</kbd><span>Deselect / cancel</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="aboutModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>About</h3>
+      <button class="modal-close" data-close>&times;</button>
+    </div>
+    <p>Diagram Studio is a free, fully client-side diagramming tool. Create flowcharts, architecture diagrams, network topologies, ERD schemas and sequence diagrams.</p>
+    <p>Everything runs in your browser. No account, no trial, no limits. Your work is auto-saved locally in your browser.</p>
+    <p>Host it anywhere static files are served, including GitHub Pages.</p>
+    <div class="modal-foot"><button class="btn ghost" data-close>Close</button></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<input type="file" id="fileInput" accept=".json,application/json" hidden>
+
+<script src="js/icons.js"></script>
+<script src="js/state.js"></script>
+<script src="js/shapes.js"></script>
+<script src="js/edges.js"></script>
+<script src="js/render.js"></script>
+<script src="js/interaction.js"></script>
+<script src="js/export.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/textdiagram.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
